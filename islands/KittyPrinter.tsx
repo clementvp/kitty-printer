@@ -31,7 +31,7 @@ function properStuff(stuff: StuffData) {
             break;
         case 'pic':
             stuff = Object.assign({
-                dither: 'pic',
+                dither: 'steinberg',
                 rotate: 0,
                 flipH: false,
                 flipV: false,

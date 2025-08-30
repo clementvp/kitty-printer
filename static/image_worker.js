@@ -81,6 +81,72 @@ function ditherHalftone(mono, w, h) {
     return mono;
 }
 
+// Looked at https://github.com/Lana-chan/webgbcam for the
+// Bayer/ordered dithering function.
+function ditherBayer(mono, w, h) {
+    const bayer8 = [
+        0, 48, 12, 60, 3, 51, 15, 63,
+        32, 16, 44, 28, 35, 19, 47, 31,
+        8, 56, 4, 52, 11, 59, 7, 55,
+        40, 24, 36, 20, 43, 27, 39, 23,
+        2, 50, 14, 62, 1, 49, 13, 61,
+        34, 18, 46, 30, 33, 17, 45, 29,
+        10, 58, 6, 54, 9, 57, 5, 53,
+        42, 26, 38, 22, 41, 25, 37, 21
+    ];
+
+    const ditherFactor = 0.6; // Same as webgbcam default
+    let p = 0;
+
+    for (let j = 0; j < h; ++j) {
+        for (let i = 0; i < w; ++i) {
+            let bayerValue = bayer8[(j % 8) * 8 + (i % 8)];
+
+            let pixelValue = mono[p];
+            pixelValue = pixelValue + ((bayerValue - 32) * ditherFactor);
+
+            if (pixelValue < 0) pixelValue = 0;
+            if (pixelValue > 255) pixelValue = 255;
+
+            mono[p] = pixelValue > 128 ? 0xff : 0x00;
+            ++p;
+        }
+    }
+    return mono;
+}
+
+// Thanks Bill! https://beyondloom.com/blog/dither.html
+function ditherAtkinson(mono, w, h) {
+    let p = 0;
+    let oldPixel, newPixel, error;
+
+    for (let j = 0; j < h; ++j) {
+        for (let i = 0; i < w; ++i) {
+            oldPixel = mono[p];
+            newPixel = oldPixel > 0x80 ? 0xff : 0x00;
+            error = (oldPixel - newPixel) >> 3; // Divide by 8
+            mono[p] = newPixel;
+
+            if (i < w - 1)
+                mono[p + 1] += error;
+            if (i < w - 2)
+                mono[p + 2] += error;
+            if (j < h - 1) {
+                if (i > 0)
+                    mono[p + w - 1] += error;
+                mono[p + w] += error;
+                if (i < w - 1)
+                    mono[p + w + 1] += error;
+            }
+            if (j < h - 2)
+                mono[p + 2 * w] += error;
+
+            ++p;
+        }
+    }
+    return mono;
+}
+
 function rotate(before, w, h, turn) {
     const after = new Uint8Array(before.length);
     switch (turn) {
@@ -147,8 +213,14 @@ self.addEventListener('message', function(event) {
     const w = msg.width, h = msg.height;
     let mono = rgbaToGray(input, msg.brightness, true);
     switch (msg.dither) {
-        case 'pic':
+        case 'steinberg':
             mono = ditherSteinberg(mono, w, h);
+            break;
+        case 'bayer':
+            mono = ditherBayer(mono, w, h);
+            break;
+        case 'atkinson':
+            mono = ditherAtkinson(mono, w, h);
             break;
         case 'pattern':
             mono = ditherHalftone(mono, w, h);
