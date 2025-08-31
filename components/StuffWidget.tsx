@@ -105,7 +105,7 @@ export default function StuffWidget(props: StuffProps) {
             if (blob === null) return;
             if (!['pic'].includes(stuff.type)) {
                 stuff.type = 'pic';
-                stuff.dither = 'pic';
+                stuff.dither = 'steinberg';
             }
             const url = URL.createObjectURL(blob);
             use_pic(url).then(() => URL.revokeObjectURL(url));
@@ -122,7 +122,7 @@ export default function StuffWidget(props: StuffProps) {
                 stuff.dither = 'text';
                 break;
             case 'pic':
-                stuff.dither = 'pic';
+                stuff.dither = 'steinberg';
                 break;
         }
         dispatch({ action: 'modify', stuff: stuff });
@@ -232,12 +232,30 @@ export default function StuffWidget(props: StuffProps) {
             </>;
             options = <>
                 <div class="stuff__option">
-                    <span class="option__title">{_('process-as')}</span>
-                    <button class="option__item" value="pic"
+                    <span class="option__title">{_('dither')}</span>
+                    <button class="option__item" value="steinberg"
                         onClick={mkmodify('dither')}
-                        data-selected={stuff.dither === 'pic'}>
-                        <Icons.IconPhoto />
-                        <span class="stuff__label">{_('picture')}</span>
+                        data-selected={stuff.dither === 'steinberg'}>
+                        <Icons.IconGrain />
+                        <span class="stuff__label">{_('steinberg')}</span>
+                    </button>
+                    <button class="option__item" value="bayer"
+                        onClick={mkmodify('dither')}
+                        data-selected={stuff.dither === 'bayer'}>
+                        <Icons.IconGridDots />
+                        <span class="stuff__label">{_('bayer')}</span>
+                    </button>
+                    <button class="option__item" value="atkinson"
+                        onClick={mkmodify('dither')}
+                        data-selected={stuff.dither === 'atkinson'}>
+                        <Icons.IconBrush />
+                        <span class="stuff__label">{_('atkinson')}</span>
+                    </button>
+                    <button class="option__item" value="pattern"
+                        onClick={mkmodify('dither')}
+                        data-selected={stuff.dither === 'pattern'}>
+                        <Icons.IconCircles />
+                        <span class="stuff__label">{_('pattern')}</span>
                     </button>
                     <button class="option__item" value="text"
                         onClick={mkmodify('dither')}

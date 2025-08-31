@@ -15,7 +15,7 @@ export interface StuffData {
     /* TODO: better way than such a trigger? */
     triggerPaste?: boolean;
 
-    dither?: 'pic' | 'pattern' | 'text';
+    dither?: 'steinberg' | 'bayer' | 'atkinson' | 'pattern' | 'text';
     rotate?: 0 | 90 | 180 | 270;
     flipH?: boolean;
     flipV?: boolean;
@@ -68,7 +68,7 @@ export interface StuffPainterProps {
 
 export interface ImageWorkerMessage {
     id: number;
-    dither: 'pic' | 'pattern' | 'text';
+    dither: 'steinberg' | 'bayer' | 'atkinson' | 'pattern' | 'text';
     rotate: 0 | 90 | 180 | 270;
     flip: 'none' | 'h' | 'v' | 'both';
     brightness: number;

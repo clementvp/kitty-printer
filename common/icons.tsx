@@ -27,6 +27,10 @@ import IconPrinter from "tabler_icons_tsx/tsx/printer.tsx";
 import IconSettings from "tabler_icons_tsx/tsx/settings.tsx";
 import IconMinus from "tabler_icons_tsx/tsx/minus.tsx";
 import IconClipboardPlus from "tabler_icons_tsx/tsx/clipboard-plus.tsx";
+import IconGridDots from "tabler_icons_tsx/tsx/grid-dots.tsx";
+import IconBrush from "tabler_icons_tsx/tsx/brush.tsx";
+import IconCircles from "tabler_icons_tsx/tsx/circles.tsx";
+import IconGrain from "tabler_icons_tsx/tsx/grain.tsx";
 import { INL_ICON_COLOR, INL_ICON_SIZE } from "./constants.ts";
 
 export const Icons = {
@@ -59,6 +63,10 @@ export const Icons = {
     IconSettings,
     IconMinus,
     IconClipboardPlus,
+    IconGridDots,
+    IconBrush,
+    IconCircles,
+    IconGrain,
 };
 
 for (const key in Icons) {
