@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MXW01 Simple Printer</title>
+    <link rel="stylesheet" href="style.css">
+  </head>
+  <body>
+    <div class="container">
+      <h1>MXW01 Simple Printer</h1>
+
+      <!-- Connection Status -->
+      <div class="section">
+        <button id="connectBtn" class="btn btn-primary">Connect Printer</button>
+        <p id="status" class="status">
+          Ready. Click 'Connect Printer' to start.
+        </p>
+      </div>
+
+      <!-- Intensity Setting (shared) -->
+      <div class="section">
+        <h2>Print Intensity</h2>
+        <div class="slider-container">
+          <label for="intensitySlider">Intensity (0-255):</label>
+          <input
+            type="range"
+            id="intensitySlider"
+            min="0"
+            max="255"
+            value="93"
+            class="slider"
+          >
+          <span id="intensityValue" class="value">93</span>
+        </div>
+      </div>
+
+      <hr>
+
+      <!-- Text Section -->
+      <div class="section">
+        <h2>Print Text</h2>
+        <textarea
+          id="textInput"
+          rows="5"
+          placeholder="Enter text to print..."
+        ></textarea>
+        <button id="printTextBtn" class="btn">Print Text</button>
+      </div>
+
+      <hr>
+
+      <!-- Image Section -->
+      <div class="section">
+        <h2>Print Image</h2>
+
+        <div class="input-group">
+          <label for="imageFile">From File:</label>
+          <input type="file" id="imageFile" accept="image/*">
+        </div>
+
+        <div class="input-group">
+          <label for="imageUrl">Or URL:</label>
+          <input
+            type="text"
+            id="imageUrl"
+            placeholder="https://example.com/image.jpg"
+          >
+        </div>
+
+        <div class="input-group">
+          <label for="ditherSelect">Dithering Algorithm:</label>
+          <select id="ditherSelect" class="select">
+            <option value="steinberg" selected>
+              Floyd-Steinberg (recommended)
+            </option>
+            <option value="bayer">Bayer (regular pattern)</option>
+            <option value="atkinson">Atkinson (vintage)</option>
+            <option value="pattern">Pattern (halftone)</option>
+            <option value="text">None (threshold)</option>
+          </select>
+        </div>
+
+        <button id="printImageBtn" class="btn">Print Image</button>
+      </div>
+
+      <hr>
+
+      <footer>
+        <p>MXW01 Thermal Printer - Simple Interface</p>
+        <p>Compatible with MXW01 384px thermal printers</p>
+      </footer>
+    </div>
+
+    <script src="printer.js"></script>
+    <script src="app.js"></script>
+  </body>
+</html>

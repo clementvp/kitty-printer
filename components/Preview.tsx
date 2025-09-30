@@ -1,11 +1,11 @@
 import { createRef } from "preact";
-import { MXW01_PRINT_SRV, MXW01_CONTROL_CHAR, MXW01_NOTIFY_CHAR, MXW01_DATA_CHAR, DEF_CANVAS_WIDTH, DEF_ENERGY, STUFF_PAINT_INIT_URL } from "../common/constants.ts";
+import { MXW01_PRINT_SRV, MXW01_CONTROL_CHAR, MXW01_NOTIFY_CHAR, MXW01_DATA_CHAR, DEF_CANVAS_WIDTH, DEF_INTENSITY, STUFF_PAINT_INIT_URL } from "../common/constants.ts";
 import { BitmapData, PrinterProps } from "../common/types.ts";
 import StuffPreview from "./StuffPreview.tsx";
 import { useMemo, useReducer } from "preact/hooks";
 import { Icons } from "../common/icons.tsx";
 import { _ } from "../common/i18n.tsx";
-import { MXW01Printer, PRINTER_WIDTH, encode1bppRow, prepareImageDataBuffer } from "../common/mxw01-protocol.ts";
+import { MXW01Printer, PRINTER_WIDTH, prepareImageDataBuffer } from "../common/mxw01-protocol.ts";
 import { delay } from "$std/async/delay.ts";
 import Settings from "./Settings.tsx";
 import { useState } from "preact/hooks";
@@ -15,17 +15,7 @@ declare let navigator: Navigator & {
     bluetooth: any;
 };
 
-function rgbaToBits(data: Uint32Array) {
-    const length = data.length / 8 | 0;
-    const result = new Uint8Array(length);
-    for (let i = 0, p = 0; i < data.length; ++p) {
-        result[p] = 0;
-        for (let d = 0; d < 8; ++i, ++d)
-            result[p] |= data[i] & 0xff & (0b1 << d);
-        result[p] ^= 0b11111111;
-    }
-    return result;
-}
+
 
 export default function Preview(props: PrinterProps) {
     const [bitmap_data, dispatch] = useReducer<Record<number, BitmapData>, BitmapData>((data, update) => {
@@ -49,10 +39,13 @@ export default function Preview(props: PrinterProps) {
         )}
     </div>;
     const print = async () => {
-        const energy = +(localStorage.getItem("energy") || DEF_ENERGY);
+        const intensity = +(localStorage.getItem("intensity") || DEF_INTENSITY);
 
         const device = await navigator.bluetooth.requestDevice({
-            acceptAllDevices: true,
+            filters: [
+                { services: ["0000ae30-0000-1000-8000-00805f9b34fb"] },
+                { services: ["0000af30-0000-1000-8000-00805f9b34fb"] },
+            ],
             optionalServices: [MXW01_PRINT_SRV]
         });
         const server = await device.gatt.connect();
@@ -108,7 +101,7 @@ export default function Preview(props: PrinterProps) {
             const height = rotatedRows.length;
 
             // 1) Set intensity
-            await printer.setIntensity(energy);
+            await printer.setIntensity(intensity);
 
             // 2) Request status and wait for response
             const statusPayload = await printer.requestStatus();
