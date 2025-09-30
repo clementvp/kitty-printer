@@ -2,10 +2,10 @@
 export const DEF_CANVAS_WIDTH = 384;
 export const DEF_CANVAS_HEIGHT = DEF_CANVAS_WIDTH;
 export const INL_ICON_SIZE = 24;
-export const CAT_ADV_SRV = 0xaf30;
-export const CAT_PRINT_SRV = 0xae30;
-export const CAT_PRINT_TX_CHAR = 0xae01;
-export const CAT_PRINT_RX_CHAR = 0xae02;
+export const MXW01_PRINT_SRV = '0000ae30-0000-1000-8000-00805f9b34fb';
+export const MXW01_CONTROL_CHAR = '0000ae01-0000-1000-8000-00805f9b34fb';
+export const MXW01_NOTIFY_CHAR = '0000ae02-0000-1000-8000-00805f9b34fb';
+export const MXW01_DATA_CHAR = '0000ae03-0000-1000-8000-00805f9b34fb';
 
 export const IN_TO_CM = 2.54;
 export const DEF_DPI = 384 / (4.8 / IN_TO_CM);

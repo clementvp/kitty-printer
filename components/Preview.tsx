@@ -1,11 +1,11 @@
 import { createRef } from "preact";
-import { CAT_ADV_SRV, CAT_PRINT_RX_CHAR, CAT_PRINT_SRV, CAT_PRINT_TX_CHAR, DEF_CANVAS_WIDTH, DEF_ENERGY, DEF_FINISH_FEED, DEF_SPEED, STUFF_PAINT_INIT_URL } from "../common/constants.ts";
+import { MXW01_PRINT_SRV, MXW01_CONTROL_CHAR, MXW01_NOTIFY_CHAR, MXW01_DATA_CHAR, DEF_CANVAS_WIDTH, DEF_ENERGY, STUFF_PAINT_INIT_URL } from "../common/constants.ts";
 import { BitmapData, PrinterProps } from "../common/types.ts";
 import StuffPreview from "./StuffPreview.tsx";
 import { useMemo, useReducer } from "preact/hooks";
 import { Icons } from "../common/icons.tsx";
 import { _ } from "../common/i18n.tsx";
-import { CatPrinter } from "../common/cat-protocol.ts";
+import { MXW01Printer, PRINTER_WIDTH, encode1bppRow, prepareImageDataBuffer } from "../common/mxw01-protocol.ts";
 import { delay } from "$std/async/delay.ts";
 import Settings from "./Settings.tsx";
 import { useState } from "preact/hooks";
@@ -14,15 +14,6 @@ declare let navigator: Navigator & {
     // deno-lint-ignore no-explicit-any
     bluetooth: any;
 };
-
-function arrayEqual<T extends ArrayLike<number | string>>(a: T, b: T) {
-    if (a.length !== b.length)
-        return false;
-    for (let i = 0; i < a.length; ++i)
-        if (a[i] !== b[i])
-            return false;
-    return true;
-}
 
 function rgbaToBits(data: Uint32Array) {
     const length = data.length / 8 | 0;
@@ -52,32 +43,33 @@ export default function Preview(props: PrinterProps) {
     const preview_ref = createRef();
     const preview = <div ref={preview_ref} class="kitty-preview">
         {stuffs.map((stuff, index) =>
-            useMemo(() => 
+            useMemo(() =>
                 <StuffPreview stuff={stuff} index={index} dispatch={dispatch} width={DEF_CANVAS_WIDTH} />
-            , [JSON.stringify(stuff)])
+                , [JSON.stringify(stuff)])
         )}
     </div>;
     const print = async () => {
-        const speed = +(localStorage.getItem("speed") || DEF_SPEED);
         const energy = +(localStorage.getItem("energy") || DEF_ENERGY);
-        const finish_feed = +(localStorage.getItem("finishFeed") || DEF_FINISH_FEED);
 
         const device = await navigator.bluetooth.requestDevice({
-            filters: [{ services: [ CAT_ADV_SRV ] }],
-            optionalServices: [ CAT_PRINT_SRV ]
+            acceptAllDevices: true,
+            optionalServices: [MXW01_PRINT_SRV]
         });
         const server = await device.gatt.connect();
         try {
-            const service = await server.getPrimaryService(CAT_PRINT_SRV);
-            const [tx, rx] = await Promise.all([
-                service.getCharacteristic(CAT_PRINT_TX_CHAR),
-                service.getCharacteristic(CAT_PRINT_RX_CHAR)
+            const service = await server.getPrimaryService(MXW01_PRINT_SRV);
+            const [controlChar, notifyChar, dataChar] = await Promise.all([
+                service.getCharacteristic(MXW01_CONTROL_CHAR),
+                service.getCharacteristic(MXW01_NOTIFY_CHAR),
+                service.getCharacteristic(MXW01_DATA_CHAR)
             ]);
-            const printer = new CatPrinter(
-                device.name,
-                tx.writeValueWithoutResponse.bind(tx),
+
+            const printer = new MXW01Printer(
+                controlChar.writeValueWithoutResponse.bind(controlChar),
+                dataChar.writeValueWithoutResponse.bind(dataChar),
                 false
             );
+
             const notifier = (event: Event) => {
                 //@ts-ignore:
                 const data: DataView = event.target.value;
@@ -85,44 +77,62 @@ export default function Preview(props: PrinterProps) {
                 printer.notify(message);
             };
 
-            let blank = 0;
-
-            // TODO: be aware of other printer state, like low power, no paper, overheat, etc.
-            await rx.startNotifications()
-                .then(() => rx.addEventListener('characteristicvaluechanged', notifier))
+            // Start notifications
+            await notifyChar.startNotifications()
+                .then(() => notifyChar.addEventListener('characteristicvaluechanged', notifier))
                 .catch((error: Error) => console.log(error));
 
-            await printer.prepare(speed, energy);
+            // Convert bitmap data to boolean rows
+            const allRowsBool: boolean[][] = [];
             for (const stuff of stuffs) {
-                if (stuff.offset) {
-                    await printer.setSpeed(8);
-                    if (stuff.offset > 0)
-                        await printer.feed(stuff.offset);
-                    else
-                        await printer.retract(-stuff.offset);
-                    await printer.setSpeed(speed);
-                }
                 const data = bitmap_data[stuff.id];
-                const bitmap = rgbaToBits(new Uint32Array(data.data.buffer));
-                const pitch = data.width / 8 | 0;
-                for (let i = 0; i < data.height * pitch; i += pitch) {
-                    const line = bitmap.slice(i, i + pitch);
-                    if (line.every(byte => byte === 0)) {
-                        blank += 1;
-                    } else {
-                        if (blank > 0) {
-                            await printer.setSpeed(8);
-                            await printer.feed(blank);
-                            await printer.setSpeed(speed);
-                            blank = 0;
-                        }
-                        await printer.draw(line);
+                const imgData = new Uint32Array(data.data.buffer);
+
+                for (let y = 0; y < data.height; y++) {
+                    const row = new Array(PRINTER_WIDTH).fill(false);
+                    for (let x = 0; x < data.width && x < PRINTER_WIDTH; x++) {
+                        const idx = y * data.width + x;
+                        // Check if pixel is black (alpha channel and luminance)
+                        const lum = imgData[idx] & 0xff;
+                        row[x] = lum < 128;
                     }
+                    allRowsBool.push(row);
                 }
             }
 
-            await printer.finish(blank + finish_feed);
-            await rx.stopNotifications().then(() => rx.removeEventListener('characteristicvaluechanged', notifier));
+            // Rotate 180° (reverse rows and reverse each row)
+            const rotatedRows = allRowsBool.reverse().map(row => row.slice().reverse());
+
+            // Prepare image data buffer with padding
+            const imageBuffer = prepareImageDataBuffer(rotatedRows);
+            const height = rotatedRows.length;
+
+            // 1) Set intensity
+            await printer.setIntensity(energy);
+
+            // 2) Request status and wait for response
+            const statusPayload = await printer.requestStatus();
+            if (statusPayload.length >= 13 && statusPayload[12] !== 0) {
+                const errCode = statusPayload[13];
+                throw new Error(`Printer error: ${errCode}`);
+            }
+
+            // 3) Send print request with number of lines
+            const printAck = await printer.printRequest(height, 0);
+            if (!printAck || printAck[0] !== 0) {
+                throw new Error('Print request rejected: ' + (printAck ? printAck[0] : 'no response'));
+            }
+
+            // 4) Transfer image data in chunks
+            await printer.sendDataChunks(imageBuffer);
+
+            // 5) Flush data
+            await printer.flushData();
+
+            // 6) Wait for print complete
+            await printer.waitForPrintComplete();
+
+            await notifyChar.stopNotifications().then(() => notifyChar.removeEventListener('characteristicvaluechanged', notifier));
         } finally {
             await delay(500);
             if (server) server.disconnect();
@@ -130,14 +140,14 @@ export default function Preview(props: PrinterProps) {
     };
     const print_menu = <div>
         <div class="print-menu">
-            <button class="stuff stuff--button" style={{width:"80%"}} aria-label={_('print')} onClick={print} data-key="Enter">
+            <button class="stuff stuff--button" style={{ width: "80%" }} aria-label={_('print')} onClick={print} data-key="Enter">
                 <Icons.IconPrinter />
             </button>
-            <button class="stuff stuff--button" style={{width:"20%"}} aria-label={_('settings')} onClick={()=>setSettingsVisible(!settingsVisible)} data-key="\">
+            <button class="stuff stuff--button" style={{ width: "20%" }} aria-label={_('settings')} onClick={() => setSettingsVisible(!settingsVisible)} data-key="\">
                 <Icons.IconSettings />
             </button>
         </div>
-        <Settings visible={settingsVisible}/>
+        <Settings visible={settingsVisible} />
     </div>;
     return <>
         {preview}
