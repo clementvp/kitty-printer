@@ -489,3 +489,8 @@ function prepareImageDataBuffer(imageRowsBool) {
 
   return buffer;
 }
+
+// Expose to global scope for use in app.js
+window.MXW01Printer = MXW01Printer;
+window.encode1bppRow = encode1bppRow;
+window.prepareImageDataBuffer = prepareImageDataBuffer;

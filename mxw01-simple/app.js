@@ -1,7 +1,7 @@
 // MXW01 Simple Printer App
 // Main application logic
 
-const PRINTER_WIDTH = 384;
+// PRINTER_WIDTH is defined in printer.js
 const imageWorker = new Worker("image_worker.js");
 let printer = null;
 let notifyChar = null;
